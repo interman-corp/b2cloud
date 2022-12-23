@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "b2cloud"
+version = "0.1.0"
+description = "ヤマト運輸株式会社が提供する送り状発行システムB2クラウドをpythonで利用するパッケージ"
+authors = ["hgs-interman <naofumi.higashikawauchi@interman.co.jp>"]
+homepage = "https://www.interman.jp/"
+repository = "https://github.com/interman-corp/b2cloud"
+documentation = "https://github.com/interman-corp/b2cloud"
+readme = "README.md"
+license = "MIT"
+
+
+[tool.poetry.dependencies]
+python = "^3.9"
+PyMuPDF = "^1.21.1"
+lxml = "^4.9.2"
+requests = "^2.28.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
