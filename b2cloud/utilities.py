@@ -24,7 +24,6 @@ def normalize_and_trim_whitespace_in_text(text: str):
     return _text
 
 
-
 def get_postal(session:requests.Session, code:str):
     """
     B2クラウドの郵便番号情報を取得する
