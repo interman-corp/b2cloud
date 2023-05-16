@@ -4,6 +4,25 @@ import json
 
 import requests
 import fitz
+import re
+
+def normalize_and_trim_whitespace_in_text(text: str):
+    """
+    文字列を正規化し、全角スペースを半角スペースに変換し、連続したスペースを1つにし、
+    先頭と末尾のスペースを削除する
+    Args:
+        text(str): 正規化する文字列
+    Returns:
+        正規化し、スペースを調整した文字列
+    """
+    # 文字コードと全角スペースを半角スペースに変換
+    _text = re.sub(r'\s', ' ', text)
+    # 連続したスペースを1つにする
+    _text = re.sub(r'\s+', ' ', _text)
+    # 先頭と末尾のスペースを削除
+    _text = _text.strip()
+    return _text
+
 
 
 def get_postal(session:requests.Session, code:str):
