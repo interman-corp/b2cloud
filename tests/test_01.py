@@ -138,9 +138,9 @@ def test_delete_new_shipment(customer_code, customer_password, customer_cls_cocd
     assert res['feed']['title'] == "Deleted."
 
 
-def test_print_new_shipment(customer_code, customer_password, customer_cls_cocde, login_user_id):
+def test_print_new_shipment_dm(customer_code, customer_password, customer_cls_cocde, login_user_id):
     """
-    伝票情報の印刷
+    DM伝票情報の印刷
     """
     session = b2cloud.login(customer_code, customer_password, customer_cls_cocde, login_user_id)
     shipment = b2cloud.utilities.create_dm_shipment(
@@ -156,10 +156,46 @@ def test_print_new_shipment(customer_code, customer_password, customer_cls_cocde
         consignee_center_code=""
     )
     checked_feed = b2cloud.post_new_checkonly(session, [shipment])
+    print(checked_feed)
     saved_feed = b2cloud.post_new(session, checked_feed)
     res = b2cloud.print_issue(session, '3', saved_feed)
     print(res[:100])
     assert res[:4].decode() == "%PDF"
+
+
+def test_print_new_shipment_m5(customer_code, customer_password, customer_cls_cocde, login_user_id):
+    """
+    m5伝票情報の印刷
+    """
+    session = b2cloud.login(customer_code, customer_password, customer_cls_cocde, login_user_id)
+    shipment = b2cloud.utilities.create_empty_shipment()
+    shipment['shipment']['service_type'] = '0'
+    shipment['shipment']['shipment_date'] =  datetime.now().strftime('%Y/%m/%d')
+    shipment['shipment']['invoice_code'] = '099285140601'
+    shipment['shipment']['invoice_freight_no'] = '01'
+    shipment['shipment']['consignee_telephone_display'] = '09034570933'
+    shipment['shipment']['consignee_name'] = "テスト太郎"
+    shipment['shipment']['consignee_zip_code'] = "8950012"
+    shipment['shipment']['consignee_address1'] = "鹿児島県"
+    shipment['shipment']['consignee_address2'] = "薩摩川内市"
+    shipment['shipment']['consignee_address3'] = "平佐町３９２６−１"
+    shipment['shipment']['shipper_address1'] = '鹿児島県'
+    shipment['shipment']['shipper_address2'] = '鹿児島市'
+    shipment['shipment']['shipper_address3'] = '中央町１０'
+    shipment['shipment']['shipper_address4'] = 'キャンセビル６階'
+    shipment['shipment']['shipper_name'] = 'インターマン株式会社'
+    shipment['shipment']['shipper_telephone'] = '0992066878'
+    shipment['shipment']['shipper_telephone_display'] = '0992066878'
+    shipment['shipment']['shipper_zip_code'] = '8900053'
+    shipment['shipment']['item_name1'] = '書籍'
+    checked_feed = b2cloud.post_new_checkonly(session, [shipment])
+    print(checked_feed)
+    saved_feed = b2cloud.post_new(session, checked_feed)
+    res = b2cloud.print_issue(session, 'm5', saved_feed)
+    print(res[:100])
+    assert res[:4].decode() == "%PDF"
+
+
 
 
 def test_update_tracking(customer_code, customer_password, customer_cls_cocde, login_user_id):
