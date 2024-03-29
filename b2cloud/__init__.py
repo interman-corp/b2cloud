@@ -290,8 +290,8 @@ def print_issue(session:requests.Session, print_type:str, entry_feed:dict):
             {
                 'id':_id,
                 'shipment':{
-                    'shipment_flg': '1',
-                    'printer_type':     entry['shipment']['printer_type'],
+                    'shipment_flg':     '1',
+                    'printer_type':     entry['shipment'].get('printer_type', '1'),
                     'service_type':     entry['shipment']['service_type'],
                     'is_cool':          entry['shipment']['is_cool'],
                     'tracking_number':  entry['shipment']['tracking_number'],
@@ -309,8 +309,7 @@ def print_issue(session:requests.Session, print_type:str, entry_feed:dict):
     # PDFデータの作成開始
     headers = {'Origin': 'https://newb2web.kuronekoyamato.co.jp'}
 
-    # tracking_numberの有無で新規か、再印刷か判断する。
-    if entry_feed['feed']['entry'][0]['shipment']['tracking_number'].startswith('OMN'):
+    if isnew:
         # 新規印刷
         response = session.post(f'https://newb2web.kuronekoyamato.co.jp/b2/p/new?issue&print_type={print_type}&sort1=service_type&sort2=created&sort3=created', headers=headers, json=json_data)
     else:
