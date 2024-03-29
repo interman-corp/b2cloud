@@ -6,6 +6,8 @@ import zlib
 import lxml.html
 import requests
 
+from b2cloud.exceptions import B2CloudError, LoginError
+
 # データキャッシュ用
 CACHE = {}
 
@@ -34,20 +36,17 @@ def login(customer_code:str, customer_password:str, customer_cls_cocde='', login
         'quickLoginCheck': ''
     }
     url = 'https://bmypageapi.kuronekoyamato.co.jp/bmypageapi/login'
-    for i in range(3):
-        try:
-            response = session.post(url, data=data)
-            response.encoding = 'shift-jis'
-            # ログインに成功すればユーザー情報が取得される
-            html = lxml.html.fromstring(response.content)
-            uels = html.xpath('//*[@id="ybmHeaderUserName"]')
-            if response.status_code == 200 and len(uels) > 0:
-                # B2Cloudに遷移
-                session.get('https://newb2web.kuronekoyamato.co.jp/b2/d/_html/index.html?oauth&call_service_code=A')
-                return session
-        except:
-            pass
-    raise Exception('ログインに失敗しました。')
+    response = session.post(url, data=data)
+    response.raise_for_status()
+    response.encoding = 'shift-jis'
+    # ログインに成功すればユーザー情報が取得される
+    html = lxml.html.fromstring(response.content)
+    uels = html.xpath('//*[@id="ybmHeaderUserName"]')
+    if response.status_code == 200 and len(uels) > 0:
+        # B2Cloudに遷移
+        session.get('https://newb2web.kuronekoyamato.co.jp/b2/d/_html/index.html?oauth&call_service_code=A')
+        return session
+    raise LoginError('ログインに失敗しました。')
 
 
 def get_history(session:requests.Session, params:dict):
@@ -63,6 +62,7 @@ def get_history(session:requests.Session, params:dict):
     """
     url = 'https://newb2web.kuronekoyamato.co.jp/b2/p/history'
     response = session.get(url, params=params)
+    response.raise_for_status()
     return json.loads(response.text)
 
 
@@ -119,6 +119,7 @@ def put_tracking(session:requests.Session, feed:dict):
         headers=headers,
         data=data,
     )
+    response.raise_for_status()
     res = json.loads(response.text)
     return res
 
@@ -144,8 +145,9 @@ def post_new_checkonly(session:requests.Session, shipments:list):
     headers = {'Origin': 'https://newb2web.kuronekoyamato.co.jp'}
 
     # 内容の事前チェック
-    res = session.post('https://newb2web.kuronekoyamato.co.jp/b2/p/new?checkonly', headers=headers, json=json_data)
-    return json.loads(res.text)
+    response = session.post('https://newb2web.kuronekoyamato.co.jp/b2/p/new?checkonly', headers=headers, json=json_data)
+    response.raise_for_status()
+    return json.loads(response.text)
 
 
 def check_shipment(session:requests.Session, shipment):
@@ -205,8 +207,9 @@ def post_new(session:requests.Session, checked_feed:dict):
     # request headers
     headers = {'Origin': 'https://newb2web.kuronekoyamato.co.jp'}
     # 登録
-    res = session.post('https://newb2web.kuronekoyamato.co.jp/b2/p/new', headers=headers, json=checked_feed)
-    return json.loads(res.text)
+    response = session.post('https://newb2web.kuronekoyamato.co.jp/b2/p/new', headers=headers, json=checked_feed)
+    response.raise_for_status()
+    return json.loads(response.text)
 
 
 def get_new(session:requests.Session, params=None):
@@ -224,8 +227,9 @@ def get_new(session:requests.Session, params=None):
     headers =  {'Origin': 'https://newb2web.kuronekoyamato.co.jp'}
     url = 'https://newb2web.kuronekoyamato.co.jp/b2/p/new'
 
-    res = session.get(url, headers=headers, params=params)
-    return json.loads(res.text)
+    response = session.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return json.loads(response.text)
 
 
 def delete_new(session:requests.Session, feed:dict):
@@ -253,6 +257,7 @@ def delete_new(session:requests.Session, feed:dict):
         headers=headers,
         data=data,
     )
+    response.raise_for_status()
     res = json.loads(response.text)
     return res
 
@@ -317,23 +322,25 @@ def print_issue(session:requests.Session, print_type:str, entry_feed:dict):
         # 再印刷
         response = session.put(f'https://newb2web.kuronekoyamato.co.jp/b2/p/history?reissue&print_type={print_type}&sort1=service_type&sort2=created&sort3=created',headers=headers, json=json_data)
 
+    response.raise_for_status()
     issue_no = json.loads(response.text)['feed']['title']
     # _res['feed']['title'] == "Success"になるまでループする
     for i in range(100):
-        res = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/polling?issue_no={issue_no}&service_no=interman')
-        _res = json.loads(res.text)
-        if _res['feed']['title'] == "Success":
+        response = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/polling?issue_no={issue_no}&service_no=interman')
+        response.raise_for_status()
+        res = json.loads(response.text)
+        if res['feed']['title'] == "Success":
             break
         time.sleep(0.1)
     else:
-        raise Exception("PDFデータ生成に失敗")
+        raise B2CloudError("PDFデータ生成に失敗")
     # 完了後にcheckを読み込むレスポンスは空
-    _ = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?checkonly=1&issue_no={issue_no}')
+    response = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?checkonly=1&issue_no={issue_no}')
 
     # 生成されたPDFデータをダウンロードする
-    res = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?issue_no={issue_no}&fileonly=1')
-
-    return res.content
+    response = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?issue_no={issue_no}&fileonly=1')
+    response.raise_for_status()
+    return response.content
 
 
 def put_history_delete(session:requests.Session, feed:dict)->dict:
@@ -361,6 +368,7 @@ def put_history_delete(session:requests.Session, feed:dict)->dict:
     'Origin': 'https://newb2web.kuronekoyamato.co.jp',
     }
     response = session.put(url, headers=headers, json=_feed)
+    response.raise_for_status()
     return json.loads(response.text)
 
 
@@ -382,6 +390,7 @@ def put_history_display(session:requests.Session, feed:dict):
     'Origin': 'https://newb2web.kuronekoyamato.co.jp',
     }
     response = session.put(url, headers=headers, json=_feed)
+    response.raise_for_status()
     return json.loads(response.text)
 
 
@@ -394,24 +403,26 @@ def get_dm_number_print(session:requests.Session, params:dict):
     _params['print_type'] = 'D2'
     _params.update(params)
     response = session.get('https://newb2web.kuronekoyamato.co.jp/b2/p/history', params=_params)
-
+    response.raise_for_status()
     issue_no = json.loads(response.text)['feed']['title']
     # _res['feed']['title'] == "Success"になるまでループする
     for i in range(100):
-        res = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/polling?issue_no={issue_no}&service_no=interman')
-        _res = json.loads(res.text)
-        if _res['feed']['title'] == "Success":
+        response = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/polling?issue_no={issue_no}&service_no=interman')
+        response.raise_for_status()
+        res = json.loads(response.text)
+        if res['feed']['title'] == "Success":
             break
         time.sleep(0.1)
     else:
-        raise Exception("PDFデータ生成に失敗")
+        raise B2CloudError("PDFデータ生成に失敗")
     # 完了後にcheckを読み込むレスポンスは空
-    res = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?checkonly=1&issue_no={issue_no}')
+    response = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?checkonly=1&issue_no={issue_no}')
 
     # 生成されたPDFデータをダウンロードする
-    res = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?issue_no={issue_no}&fileonly=1')
+    response = session.get(f'https://newb2web.kuronekoyamato.co.jp/b2/p/B2_OKURIJYO?issue_no={issue_no}&fileonly=1')
+    response.raise_for_status()
 
-    return res.content
+    return response.content
 
 
 def search_history(session:requests.Session,
@@ -562,7 +573,7 @@ def __compress_feed(session, feed):
         if field_list is None:
             return [192]
         if type(field_list) == dict:
-            raise Exception("未実装1")
+            raise NotImplemented("未実装1")
         if type(field_list) is list:
             ret = []
             t = len(field_list)
@@ -597,7 +608,7 @@ def __compress_feed(session, feed):
             for c in bitem:
                 ret.append(c)
             return ret
-        raise Exception("未実装2")
+        raise NotImplemented("未実装2")
 
     template = __create_template()
     # tracking更新処理2 feedをfield_listに変換する
