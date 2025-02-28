@@ -6,6 +6,8 @@ import zlib
 import lxml.html
 import requests
 
+from b2cloud.adapters import HTTPSAdapter
+
 # データキャッシュ用
 CACHE = {}
 
@@ -23,6 +25,7 @@ def login(customer_code:str, customer_password:str, customer_cls_cocde='', login
     '''
 
     session = requests.Session()
+    session.mount("https://", HTTPSAdapter())
     data = {
         'quickLoginCheckH': '',
         'BTN_NM': 'LOGIN',
